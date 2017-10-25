@@ -25,4 +25,4 @@ main = do
   let boardLong = sort [Point x y | x <- [0..19], y <- [0..2]]
 
   let results =  solve board pieces
-  print (length results)
+  print (length results) -- outputs 2339
