@@ -1,8 +1,8 @@
 module Lib
     ( Point(..)
-      , genSetP
-      , rot90P
-      , alignP
+      , genSet
+      , rot90
+      , align
       , solve
     ) where
 
@@ -10,62 +10,46 @@ import Data.List
 
 data Point = Point Int Int deriving (Show, Eq, Ord)
 
-unshift :: Point -> Point -> Point
-unshift (Point offsetx offsety) (Point x y) = Point (x-offsetx) (y-offsety)
+unshift :: Point -> [Point] -> [Point]
+unshift (Point xo yo) = map (\(Point x y) -> Point (x-xo) (y-yo))
 
-unshiftP :: Point -> [Point] -> [Point]
-unshiftP offset = map (unshift offset)
+shift :: Point -> [Point] -> [Point]
+shift (Point xo yo) = map (\(Point x y) -> Point (x+xo) (y+yo))
 
-shift :: Point -> Point -> Point
-shift (Point offsetx offsety) (Point x y) = Point (x+offsetx) (y+offsety)
-
-shiftP :: Point -> [Point] -> [Point]
-shiftP offset = map (shift offset)
-
-cornerP :: [Point] -> Point
-cornerP [p] = p
-cornerP (p:ps) = if p < cornerP ps then p else cornerP ps
-
-xx:: Point -> Int
-xx (Point x y) = x
-
-yy:: Point -> Int
-yy (Point x y) = y
-
-genSetP :: [Point] -> [[Point]]
-genSetP p = nub ps 
+genSet :: [Point] -> [[Point]]
+genSet p = nub ps 
   where
-    ps = [alignP p, rot90P p, rot180P p, rot270P p, flipP p, flip90P p, flip180P p, flip270P p]
+    ps = [align p, rot90 p, rot180 p, rot270 p, mirror p, mirror90 p, mirror180 p, mirror270 p]
 
-alignP :: [Point] -> [Point]
-alignP p = sort $ unshiftP (cornerP p) p
+align :: [Point] -> [Point]
+align p = sort $ unshift (minimum p) p
 
-flipP :: [Point] -> [Point]
-flipP = alignP . flipP'
+mirror :: [Point] -> [Point]
+mirror = align . mirror'
 
-flipP' :: [Point] -> [Point]
-flipP' = map (\p -> Point (-xx p) (yy p)) 
+mirror' :: [Point] -> [Point]
+mirror' = map (\(Point x y) -> Point (-x) y) 
 
-rot90P :: [Point] -> [Point]
-rot90P = alignP . rot90P'
+rot90 :: [Point] -> [Point]
+rot90 = align . rot90'
 
-rot90P' :: [Point] -> [Point]
-rot90P' = map (\p -> Point (-yy p) (xx p))
+rot90' :: [Point] -> [Point]
+rot90' = map (\(Point x y) -> Point (-y) x)
 
-rot180P :: [Point] -> [Point]
-rot180P = alignP . rot90P' . rot90P'
+rot180 :: [Point] -> [Point]
+rot180 = align . rot90' . rot90'
 
-rot270P :: [Point] -> [Point]
-rot270P = alignP . rot90P' . rot90P' . rot90P'
+rot270 :: [Point] -> [Point]
+rot270 = align . rot90' . rot90' . rot90'
 
-flip90P :: [Point] -> [Point]
-flip90P = alignP . flipP' . rot90P'
+mirror90 :: [Point] -> [Point]
+mirror90 = align . mirror' . rot90'
 
-flip180P :: [Point] -> [Point]
-flip180P = alignP . flipP' . rot90P' . rot90P'
+mirror180 :: [Point] -> [Point]
+mirror180 = align . mirror' . rot90' . rot90'
 
-flip270P :: [Point] -> [Point]
-flip270P = alignP . flipP' . rot90P' . rot90P' . rot90P'
+mirror270 :: [Point] -> [Point]
+mirror270 = align . mirror' . rot90' . rot90' . rot90'
 
 --
 
@@ -94,10 +78,10 @@ except (b:bs) (p:ps)
 placeable :: [Point] -> [Point] -> ([Point],[Point])
 placeable _ [] = ([],[])
 placeable [] _ = ([],[])
-placeable board p = if inc (shiftP (board!!0) p) board
---                     then if checkDivide (except board (shiftP (board!!0) p))
+placeable board p = if inc (shift (board!!0) p) board
+--                     then if checkDivide (except board (shift (board!!0) p))
                      then if True
-                       then (shiftP (board!!0) p, except board (shiftP (board!!0) p))
+                       then (shift (board!!0) p, except board (shift (board!!0) p))
                        else ([],[])
                      else ([],[])
 
@@ -116,11 +100,11 @@ solve' board pieces = concatMap (\(p,b,ps) -> map (p:) (solve' b ps)) $ concatMa
 --
 
 nextTo :: Point -> Point -> Bool
-nextTo p1 p2 = if ((xx p1)-(xx p2)>1) || ((xx p2)-(xx p1)>1)
+nextTo (Point x1 y1) (Point x2 y2) = if (x1-x2>1) || (x2-x1>1)
   then False
-  else if ((yy p1)-(yy p2)>1) || ((yy p2)-(yy p1)>1)
+  else if (y1-y2>1) || (y2-y1>1)
     then False
-    else  if ((xx p1)==(xx p2))||((yy p1)==(yy p2))
+    else  if (x1==x2)||(y1==y2)
       then True
       else False
 
