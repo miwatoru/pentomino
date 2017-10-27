@@ -17,7 +17,7 @@ main = do
   let y = [Point 0 0, Point 0 1, Point 0 2, Point 0 3, Point 1 1]
   let z = [Point 0 0, Point 1 0, Point 1 1, Point 1 2, Point 2 2]
 
-  let pieces = [genSetP f, genSetP i, genSetP l, genSetP n, [alignP p, rot90P p], genSetP t, genSetP u, genSetP v, genSetP w, genSetP x, genSetP y, genSetP z]
+  let pieces = [genSet f, genSet i, genSet l, genSet n, [align p, rot90 p], genSet t, genSet u, genSet v, genSet w, genSet x, genSet y, genSet z]
 
   let board = [Point x y | x <- [0..9], y <- [0..5]]
   let board2 = [Point x y | x <- [0..5], y <- ([0..4]++[6..10])]
