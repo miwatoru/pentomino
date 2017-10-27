@@ -1,7 +1,6 @@
 module Main where
 
 import Lib
-import Data.List
 
 main :: IO ()
 main = do
@@ -20,9 +19,9 @@ main = do
 
   let pieces = [genSetP f, genSetP i, genSetP l, genSetP n, [alignP p, rot90P p], genSetP t, genSetP u, genSetP v, genSetP w, genSetP x, genSetP y, genSetP z]
 
-  let board = sort [Point x y | x <- [0..9], y <- [0..5]]
-  let board2 = sort [Point x y | x <- [0..5], y <- ([0..4]++[6..10])]
-  let boardLong = sort [Point x y | x <- [0..19], y <- [0..2]]
+  let board = [Point x y | x <- [0..9], y <- [0..5]]
+  let board2 = [Point x y | x <- [0..5], y <- ([0..4]++[6..10])]
+  let boardLong = [Point x y | x <- [0..19], y <- [0..2]]
 
   let results =  solve board pieces
   print (length results) -- outputs 2339

@@ -75,13 +75,29 @@ select (x:xs) = (x,xs) : map (\(y,ys) -> (y,x:ys)) (select xs)
 
 --
 
+inc :: [Point] -> [Point] -> Bool
+inc [] _ = True
+inc _ [] = False
+inc (p:ps) (b:bs) 
+  | p == b = inc ps bs
+  | p < b = False
+  | p > b = inc (p:ps) bs
+
+except :: [Point] -> [Point] -> [Point]
+except b [] = b
+except [] _ = []
+except (b:bs) (p:ps)
+  | b == p = except bs ps
+  | b < p = b : except bs (p:ps)
+  | b > p = except (b:bs) ps
+
 placeable :: [Point] -> [Point] -> ([Point],[Point])
 placeable _ [] = ([],[])
 placeable [] _ = ([],[])
-placeable board p = if (shiftP (board!!0) p) \\ board == []
---                     then if checkDivide (board \\ (shiftP (board!!0) p))
+placeable board p = if inc (shiftP (board!!0) p) board
+--                     then if checkDivide (except board (shiftP (board!!0) p))
                      then if True
-                       then (shiftP (board!!0) p,board \\ (shiftP (board!!0) p))
+                       then (shiftP (board!!0) p, except board (shiftP (board!!0) p))
                        else ([],[])
                      else ([],[])
 
@@ -90,9 +106,12 @@ placeableset board pset = filter (/= ([],[])) $ map (placeable board) pset
 -- placeableset board pset = map (placeable board) pset
 
 solve :: [Point] -> [[[Point]]] -> [[[Point]]]
-solve _ [] = [[]]
-solve [] _ = [[]]
-solve board pieces = concatMap (\(p,b,ps) -> map (p:) (solve b ps)) $ concatMap (\(p,ps)->(map (\(l) -> (fst l, snd l,ps))(placeableset board p))) $ select pieces
+solve board = solve' (sort board)
+
+solve' :: [Point] -> [[[Point]]] -> [[[Point]]]
+solve' _ [] = [[]]
+solve' [] _ = [[]]
+solve' board pieces = concatMap (\(p,b,ps) -> map (p:) (solve' b ps)) $ concatMap (\(p,ps)->(map (\(l) -> (fst l, snd l,ps))(placeableset board p))) $ select pieces
 
 --
 
