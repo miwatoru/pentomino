@@ -4,6 +4,7 @@ module Lib
       , rot90
       , align
       , solve
+      , char
     ) where
 
 import Data.List
@@ -16,8 +17,8 @@ unshift (Point xo yo) = map (\(Point x y) -> Point (x-xo) (y-yo))
 shift :: Point -> [Point] -> [Point]
 shift (Point xo yo) = map (\(Point x y) -> Point (x+xo) (y+yo))
 
-genSet :: [Point] -> [[Point]]
-genSet p = nub ps 
+genSet :: (Char, [Point]) -> (Char, [[Point]])
+genSet (c, p) = (c, nub ps)
   where
     ps = [align p, rot90 p, rot180 p, rot270 p, mirror p, mirror90 p, mirror180 p, mirror270 p]
 
@@ -25,31 +26,25 @@ align :: [Point] -> [Point]
 align p = sort $ unshift (minimum p) p
 
 mirror :: [Point] -> [Point]
-mirror = align . mirror'
-
-mirror' :: [Point] -> [Point]
-mirror' = map (\(Point x y) -> Point (-x) y) 
+mirror p = align $ map (\(Point x y) -> Point (-x) y) p
 
 rot90 :: [Point] -> [Point]
-rot90 = align . rot90'
-
-rot90' :: [Point] -> [Point]
-rot90' = map (\(Point x y) -> Point (-y) x)
+rot90 p = align $ map (\(Point x y) -> Point (-y) x) p
 
 rot180 :: [Point] -> [Point]
-rot180 = align . rot90' . rot90'
+rot180 p = align $ map (\(Point x y) -> Point (-x) (-y)) p
 
 rot270 :: [Point] -> [Point]
-rot270 = align . rot90' . rot90' . rot90'
+rot270 p = align $ map (\(Point x y) -> Point y (-x)) p
 
 mirror90 :: [Point] -> [Point]
-mirror90 = align . mirror' . rot90'
+mirror90 p = align $ map (\(Point x y) -> Point y x) p
 
 mirror180 :: [Point] -> [Point]
-mirror180 = align . mirror' . rot90' . rot90'
+mirror180 p = align $ map (\(Point x y) -> Point x (-y)) p
 
 mirror270 :: [Point] -> [Point]
-mirror270 = align . mirror' . rot90' . rot90' . rot90'
+mirror270 p = align $ map (\(Point x y) -> Point (-y) (-x)) p
 
 --
 
@@ -75,53 +70,38 @@ except (b:bs) (p:ps)
   | b < p = b : except bs (p:ps)
   | b > p = except (b:bs) ps
 
-placeable :: [Point] -> [Point] -> ([Point],[Point])
-placeable _ [] = ([],[])
-placeable [] _ = ([],[])
-placeable board p = if inc (shift (board!!0) p) board
---                     then if checkDivide (except board (shift (board!!0) p))
-                     then if True
-                       then (shift (board!!0) p, except board (shift (board!!0) p))
-                       else ([],[])
-                     else ([],[])
+--
 
-placeableset :: [Point] -> [[Point]] -> [([Point],[Point])]
-placeableset board pset = filter (/= ([],[])) $ map (placeable board) pset
--- placeableset board pset = map (placeable board) pset
+placeableset :: [Point] -> (Char, [[Point]]) -> [(Char, [[Point]])] -> [(Char,[Point],[Point],[(Char,[[Point]])])]
+placeableset [] _ _ = []
+placeableset b p ps = map (\(po,bo) -> (fst p, po, bo, ps)) $ placeableset' b (snd p) 
 
-solve :: [Point] -> [[[Point]]] -> [[[Point]]]
-solve board = solve' (sort board)
+placeableset' :: [Point] -> [[Point]] -> [([Point],[Point])]
+placeableset' [] _ = []
+placeableset' _ [] = []
+placeableset' board (p:ps)
+  | inc (shift (board!!0) p) board = (shift (board!!0) p, except board (shift (board!!0) p)) : placeableset' board ps
+  | otherwise = placeableset' board ps
 
-solve' :: [Point] -> [[[Point]]] -> [[[Point]]]
+solve :: [Point] -> [(Char, [[Point]])] -> [[(Point, Char)]]
+solve board pss = map (concatMap (\a -> map (\b -> (b, fst a)) (snd a))) $ solve' (sort board) pss
+
+solve' :: [Point] -> [(Char, [[Point]])] -> [[(Char, [Point])]]
 solve' _ [] = [[]]
 solve' [] _ = [[]]
-solve' board pieces = concatMap (\(p,b,ps) -> map (p:) (solve' b ps)) $ concatMap (\(p,ps)->(map (\(l) -> (fst l, snd l,ps))(placeableset board p))) $ select pieces
+solve' board pieces = concatMap (\(c,p,b,ps) -> map ((c,p):) (solve' b ps)) $ concatMap (\(p,ps)-> (placeableset board p ps)) $ select pieces
 
 --
+strip :: Maybe Char -> Char
+strip (Just x) = x
+strip Nothing = ' '
 
-nextTo :: Point -> Point -> Bool
-nextTo (Point x1 y1) (Point x2 y2) = if (x1-x2>1) || (x2-x1>1)
-  then False
-  else if (y1-y2>1) || (y2-y1>1)
-    then False
-    else  if (x1==x2)||(y1==y2)
-      then True
-      else False
+char :: [Point] -> [[(Point, Char)]] -> [[[Char]]]
+char board results = map (map (foldr (:) [])) $ map (\r -> map (\x -> map (\y -> strip $ lookup (Point x y) r) [miny..maxy]) [minx..maxx]) results
+  where
+    minx = minimum $ map (\(Point x y) -> x) board
+    maxx = maximum $ map (\(Point x y) -> x) board
+    miny = minimum $ map (\(Point x y) -> y) board
+    maxy = maximum $ map (\(Point x y) -> y) board
 
-nextToset :: [Point] -> Point -> Bool
-nextToset set ele = foldr (\(p) -> (||) (nextTo ele p) ) False set
-
-neighbors :: [Point] -> [Point] -> [Point]
-neighbors set all = if length (filter (nextToset set) all)==0
-  then set
-  else neighbors (set ++ filter (nextToset set) all)  (all \\ (set ++ filter (nextToset set) all))
-
-divide :: [Point] -> [[Point]]
-divide [] = []
-divide b = neighbors [b!!0] b : divide (b \\ (neighbors [b!!0] b))
-
-checkDivide :: [Point] -> Bool
-checkDivide b = foldr (&&) True $ map (\(x) -> mod (length x) 5 == 0) $ divide b
-
---
 
