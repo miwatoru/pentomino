@@ -1,15 +1,18 @@
 module Lib
-    ( Point(..)
-      , genSet
-      , rot90
-      , align
-      , solve
-      , char
-    ) where
+  ( Point(..)
+    , Board(..)
+    , genSet
+    , rot90
+    , align
+    , solve
+    , char
+  ) where
 
 import Data.List
 
 data Point = Point Int Int deriving (Show, Eq, Ord)
+data Board = Board [Point] deriving Show
+type Piece = [Point]
 
 unshift :: Point -> [Point] -> [Point]
 unshift (Point xo yo) = map (\(Point x y) -> Point (x-xo) (y-yo))
@@ -17,7 +20,7 @@ unshift (Point xo yo) = map (\(Point x y) -> Point (x-xo) (y-yo))
 shift :: Point -> [Point] -> [Point]
 shift (Point xo yo) = map (\(Point x y) -> Point (x+xo) (y+yo))
 
-genSet :: (Char, [Point]) -> (Char, [[Point]])
+genSet :: (Char, Piece) -> (Char, [Piece])
 genSet (c, p) = (c, nub ps)
   where
     ps = [align p, rot90 p, rot180 p, rot270 p, mirror p, mirror90 p, mirror180 p, mirror270 p]
@@ -72,23 +75,23 @@ except (b:bs) (p:ps)
 
 --
 
-placeableset :: [Point] -> (Char, [[Point]]) -> [(Char, [[Point]])] -> [(Char,[Point],[Point],[(Char,[[Point]])])]
-placeableset [] _ _ = []
+placeableset :: Board -> (Char, [Piece]) -> [(Char, [Piece])] -> [(Char,Piece,Board,[(Char,[Piece])])]
+placeableset (Board []) _ _ = []
 placeableset b p ps = map (\(po,bo) -> (fst p, po, bo, ps)) $ placeableset' b (snd p) 
 
-placeableset' :: [Point] -> [[Point]] -> [([Point],[Point])]
-placeableset' [] _ = []
+placeableset' :: Board -> [Piece] -> [(Piece,Board)]
+placeableset' (Board []) _ = []
 placeableset' _ [] = []
-placeableset' board (p:ps)
-  | inc (shift (board!!0) p) board = (shift (board!!0) p, except board (shift (board!!0) p)) : placeableset' board ps
-  | otherwise = placeableset' board ps
+placeableset' (Board b) (p:ps)
+  | inc (shift (b!!0) p) b = (shift (b!!0) p, Board (except b (shift (b!!0) p))) : placeableset' (Board b) ps
+  | otherwise = placeableset' (Board b) ps
 
-solve :: [Point] -> [(Char, [[Point]])] -> [[(Point, Char)]]
-solve board pss = map (concatMap (\a -> map (\b -> (b, fst a)) (snd a))) $ solve' (sort board) pss
+solve :: Board -> [(Char, [Piece])] -> [[(Point, Char)]]
+solve (Board bd) pss = map (concatMap (\a -> map (\b -> (b, fst a)) (snd a))) $ solve' (Board (sort bd)) pss
 
-solve' :: [Point] -> [(Char, [[Point]])] -> [[(Char, [Point])]]
+solve' :: Board -> [(Char, [Piece])] -> [[(Char, Piece)]]
 solve' _ [] = [[]]
-solve' [] _ = [[]]
+solve' (Board []) _ = [[]]
 solve' board pieces = concatMap (\(c,p,b,ps) -> map ((c,p):) (solve' b ps)) $ concatMap (\(p,ps)-> (placeableset board p ps)) $ select pieces
 
 --
@@ -96,12 +99,12 @@ strip :: Maybe Char -> Char
 strip (Just x) = x
 strip Nothing = ' '
 
-char :: [Point] -> [[(Point, Char)]] -> [[[Char]]]
-char board results = map (map (foldr (:) [])) $ map (\r -> map (\x -> map (\y -> strip $ lookup (Point x y) r) [miny..maxy]) [minx..maxx]) results
+char :: Board -> [[(Point, Char)]] -> [[[Char]]]
+char (Board b) results = map (map (foldr (:) [])) $ map (\r -> map (\x -> map (\y -> strip $ lookup (Point x y) r) [miny..maxy]) [minx..maxx]) results
   where
-    minx = minimum $ map (\(Point x y) -> x) board
-    maxx = maximum $ map (\(Point x y) -> x) board
-    miny = minimum $ map (\(Point x y) -> y) board
-    maxy = maximum $ map (\(Point x y) -> y) board
+    minx = minimum $ map (\(Point x y) -> x) b
+    maxx = maximum $ map (\(Point x y) -> x) b
+    miny = minimum $ map (\(Point x y) -> y) b
+    maxy = maximum $ map (\(Point x y) -> y) b
 
 
