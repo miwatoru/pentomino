@@ -65,14 +65,6 @@ inc (p:ps) (b:bs)
   | p < b = False
   | p > b = inc (p:ps) bs
 
-except :: [Point] -> [Point] -> [Point]
-except b [] = b
-except [] _ = []
-except (b:bs) (p:ps)
-  | b == p = except bs ps
-  | b < p = b : except bs (p:ps)
-  | b > p = except (b:bs) ps
-
 --
 
 placeableset :: Board -> (Char, [Piece]) -> [(Char, [Piece])] -> [(Char,Piece,Board,[(Char,[Piece])])]
@@ -83,7 +75,7 @@ placeableset' :: Board -> [Piece] -> [(Piece,Board)]
 placeableset' (Board []) _ = []
 placeableset' _ [] = []
 placeableset' (Board b) (p:ps)
-  | inc (shift (b!!0) p) b = (shift (b!!0) p, Board (except b (shift (b!!0) p))) : placeableset' (Board b) ps
+  | inc (shift (b!!0) p) b = (shift (b!!0) p, Board (sortedSub b (shift (b!!0) p))) : placeableset' (Board b) ps
   | otherwise = placeableset' (Board b) ps
 
 solve :: Board -> [(Char, [Piece])] -> [[(Point, Char)]]
@@ -92,6 +84,7 @@ solve (Board bd) pss = map (concatMap (\a -> map (\b -> (b, fst a)) (snd a))) $ 
 solve' :: Board -> [(Char, [Piece])] -> [[(Char, Piece)]]
 solve' _ [] = [[]]
 solve' (Board []) _ = [[]]
+--solve' (Board bs) _ | not (checkDivide bs) = []
 solve' board pieces = concatMap (\(c,p,b,ps) -> map ((c,p):) (solve' b ps)) $ concatMap (\(p,ps)-> (placeableset board p ps)) $ select pieces
 
 --
@@ -107,4 +100,71 @@ char (Board b) results = map (map (foldr (:) [])) $ map (\r -> map (\x -> map (\
     miny = minimum $ map (\(Point x y) -> y) b
     maxy = maximum $ map (\(Point x y) -> y) b
 
+--
+
+nextTo :: Point -> Point -> Bool
+nextTo (Point x1 y1) (Point x2 y2) = if not((x1+y1)-(x2+y2)==1 || (x2+y2)-(x1+y1)==1)
+  then False
+  else if not((x1-y1)-(x2-y2)==1 || (x2-y2)-(x1-y1)==1)
+    then False
+    else  True
+
+nextToset :: [Point] -> Point -> Bool
+nextToset set ele = foldr (\(p) -> (||) (nextTo ele p) ) False set
+
+neighbors :: [Point] -> [Point] -> [Point]
+neighbors set all = (\(b,f,r) -> b) $ neighbors' ([], set, all)
+
+neighbors' :: ([Point],[Point],[Point]) -> ([Point],[Point],[Point])
+-- neighbors' (back,front,rest) = (newback,newfront,newrest)
+neighbors' (b,[],r) = (b,[],r)
+neighbors' (b,f,[]) = (merge b f,[],[])
+neighbors' (b,f,r) = neighbors' (merge b f, fl, sortedSub r fl)
+  where
+    fl = filter (\p -> nextToset f p) r
+---neighbors' (b,f,r) = neighbors' (merge b f, sortedIntersect r fl, sortedSub r fl)
+---  where
+---    fl = nubSort $ concatMap (neighbors'') f
+
+merge :: Ord a => [a] -> [a] -> [a]
+merge [] a = a
+merge a [] = a
+merge (a:as) (b:bs)
+  |a<b = a: (merge as (b:bs))
+  |a>b = b: (merge (a:as) bs)
+
+nubSort :: (Eq a, Ord a) => [a] -> [a]
+nubSort [] = []
+nubSort (x:xs) = nubSort lt ++ [x] ++ nubSort gt
+  where
+    lt = [l | l <- xs, l < x]
+    gt = [g | g <- xs, g > x]
+
+sortedIntersect :: (Eq a, Ord a) => [a] -> [a] -> [a]
+sortedIntersect [] _ = []
+sortedIntersect _ [] = []
+sortedIntersect (a:as) (b:bs) 
+  | a<b = sortedIntersect as (b:bs)
+  | a>b = sortedIntersect (a:as) bs
+  | otherwise = a : (sortedIntersect as bs)
+
+sortedSub :: (Eq a, Ord a) => [a] -> [a] -> [a]
+sortedSub [] _ = []
+sortedSub l [] = l
+sortedSub (a:as) (b:bs) 
+  | a<b = a : (sortedSub as (b:bs))
+  | a==b = sortedSub as bs
+  | a>b = sortedSub (a:as) bs
+
+neighbors'' :: Point -> [Point]
+neighbors'' (Point x y) = [Point (x-1) y, Point (x+1) y, Point x (y-1), Point x (y+1)]
+
+divide :: [Point] -> [[Point]]
+divide [] = []
+divide (b:bs) = seg : divide (sortedSub bs seg)
+  where
+    seg = neighbors [b] bs
+
+checkDivide :: [Point] -> Bool
+checkDivide b = foldl (&&) True $ map (\(x) -> mod (length x) 5 == 0) $ divide b
 
